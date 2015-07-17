@@ -1,6 +1,6 @@
 <?php namespace \Grovers\Bbjen;
 
-class bbjen {
+class Bbjen {
 
 	public function process($data) {
 		dd($data);
