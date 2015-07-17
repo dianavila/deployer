@@ -1,6 +1,6 @@
 {
-    "name": "grovers/bbjen",
-    "description": "Trigger Jenkins jobs from Bitbucket webhook",
+    "name": "grovers/deployer",
+    "description": "Receive Bitbucket webhook and trigger the appropriate Jenkins job, allowing different jobs for different GIT branches.",
     "authors": [
         {
             "name": "Shawn Grover",
@@ -12,7 +12,7 @@
 	},
     "autoload" : {
         "psr-4": {
-            "Grovers\\Bbjen\\" : "src/"
+            "Grovers\\Deployer\\" : "src/"
         }
     }
 }
