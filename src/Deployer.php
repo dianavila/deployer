@@ -141,7 +141,7 @@ class Deployer {
 
 		$url = $this->jenkins .'/buildByToken/build?'. http_build_query($params);
 
-		if ($this->rawdata) {
+		if ($this->lograw) {
 			$this->log(' - url: '. $url);
 		}
 
