@@ -1,0 +1,18 @@
+{
+    "name": "grovers/bbjen",
+    "description": "Trigger Jenkins jobs from Bitbucket webhook",
+    "authors": [
+        {
+            "name": "Shawn Grover",
+            "email": "sgrover@open2space.com"
+        }
+    ],
+    "require": {
+    	"php" : ">=5.4.0"
+	},
+    "autoload" : {
+        "psr-4": {
+            "Grovers\\Bbjen\\" : "src/"
+        }
+    }
+}
