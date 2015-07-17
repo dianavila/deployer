@@ -24,7 +24,7 @@ class BbjenServiceProvider extends ServiceProvider {
     public function boot()
     {
         // Set up routing
-        include __DIR__.'/routes.php';
+        // include __DIR__.'/routes.php';
 
         // Published items
         $this->publishes([
