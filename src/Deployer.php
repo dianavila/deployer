@@ -2,52 +2,33 @@
 
 class Deployer {
 
-	// This will hold the URL to the Jenkins server we should call
-	protected $jenkins = '';
-	protected $lograw = false;
-
-	/**
-	 * The class constructor
-	 * @param string $jenkins_url URL to the Jenkins server
-	 */
-	public function __construct($jenkins_url) {
-		$this->jenkins = $jenkins_url;
-	}
-
 	/**
 	 * Handle an incoming HTTP request
 	 * @return void
 	 */
 	public function process() {
 		// only handle POST requests
-		if ( ! $this->isPost() ) {
+		if ( ! self::isPost() ) {
 			http_response_code(404);
 			return;
 		}
 
-		if ($this->lograw) {
-			$this->log('REQUEST Received');
-			$this->log('  ** Raw Data: '. file_get_contents('php://input'));	
+		self::log('REQUEST Received');
+		if (strtolower(getenv('LOG_RAW') === 'true')) {
+			self::log('  ** Raw Data: '. file_get_contents('php://input'));	
 		}
 		
 		// get the job data
-		$jobdata = $this->extract_data();
+		$jobdata = self::extract_data();
+		self::log('  jobdata: '. json_encode($jobdata));
 
 		// do not do anything unless we have a job defined.
 		if ($jobdata['job'] != '') {
-			$this->log('Requesting Job: '. $jobdata['job']);
-			$this->sendJob($jobdata);
+			// self::log('  Requesting Job: '. $jobdata['job']);
+			self::sendJob($jobdata);
 		}
 	}
 
-	/**
-	 * Indicate if raw data should be logged or not.
-	 * @param  boolean $lograw
-	 * @return void
-	 */
-	public function rawdata($lograw) {
-		$this->lograw = $lograw;
-	}
 
 	/**
 	 * indicates if the current request is a POST request
@@ -61,20 +42,20 @@ class Deployer {
 		return false;
 	}
 
-
-
 	/**
 	 * Creates a log entry
 	 * @param  string $msg
 	 * @return void
 	 */
 	private function log($msg) {
-		$log = $_SERVER['DOCUMENT_ROOT'] .'/deployer.log';
-		$line = '['. date('Y-m-d H:i:s') .'] '. $msg . PHP_EOL;
-		$fh = fopen($log, 'a+');
-		if ($fh) {
-			fwrite($fh, $line);
-			fclose($fh);
+		if (strtolower(getenv('LOG_ENABLE')) === 'true') {
+			$log = $_SERVER['DOCUMENT_ROOT'] .'/deployer.log';
+			$line = '['. date('Y-m-d H:i:s') .'] '. $msg . PHP_EOL;
+			$fh = fopen($log, 'a+');
+			if ($fh) {
+				fwrite($fh, $line);
+				fclose($fh);
+			}
 		}
 	}
 
@@ -91,10 +72,11 @@ class Deployer {
 	private function extract_data() {
 
 		$out = [
-			'repo' => '',
+			'repo'   => '',
 			'branch' => '',
-			'job' => '',
-			'token' => '',
+			'job'    => '',
+			'token'  => '',
+			'author' => ''
 		];
 
 		$raw = json_decode(file_get_contents('php://input'));
@@ -104,12 +86,13 @@ class Deployer {
 
 		// 
 		$changes = $raw->push->changes;
-		// var_dump($changes);
+
 		// Find the "new" data and extract the branch from there
 		foreach($changes as $change) {
 			if ($change->new) {
 				if ($change->new->type == 'branch') {
 					$out['branch'] = $change->new->name;
+					$out['author'] = $change->new->target->author->raw;
 				}
 			}
 		}
@@ -139,12 +122,8 @@ class Deployer {
 			'token' => $jobdata['token']
 		);
 
-		$url = $this->jenkins .'/buildByToken/build?'. http_build_query($params);
-
-		if ($this->lograw) {
-			$this->log(' - url: '. $url);
-		}
-
+		$url = getenv('JENKINS_URL') .'/buildByToken/build?'. http_build_query($params);
+		self::log('  url: '. $url);
 
 		$ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -152,10 +131,48 @@ class Deployer {
         $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($http_status >= 400) {
-        	$this->log('ERROR: [HTTP STATUS: '. $http_status .'] Error requesting Jenkins Build');
-        	$this->log('       URL: '. $url);
+        if ($http_status == 0 OR $http_status >= 400) {
+        	$msg = 'ERROR: [HTTP STATUS: '. $http_status .'] Error requesting Jenkins Build';
+        	self::log('  '. $msg);
+        	self::log('  URL: '. $url);
+        	self::notifyAuthor($jobdata, $msg);
         }
 	}
 
+	/**
+	 * Send an email to the commit author notifying an error has occured.
+	 */
+	private function notifyAuthor($jobdata, $error) {
+		if (strtolower(getenv('SMTP_ENABLE')) === 'true') {
+			// Set up the mail
+			$to = self::extractEmailAddress($jobdata['author']);
+			$msgBody = "A deployment error has occured: \n". $error;
+
+			$transport = \Swift_SmtpTransport::newInstance(getenv('SMTP_HOSTNAME'), getenv('SMTP_PORT'))
+						->setUsername(getenv('SMTP_USERNAME'))
+						->setPassword(getenv('SMTP_PASSWORD'));
+
+			$mailer = \Swift_Mailer::newInstance($transport);
+			$message = \Swift_Message::newInstance('Deployment Error')
+						->setFrom([getenv('SMTP_SENDER_EMAIL') => getenv('SMTP_SENDER_NAME')])
+						->setTo($to)
+						->setBody($msgBody);
+
+			// Send the message
+			$result = $mailer->send($message);
+
+			self::log('  email sent: '. $to);
+		}
+	}
+
+
+	/**
+	 * Finds the first email address in a source string
+	 */
+	private function extractEmailAddress($src) {
+		$email = null;
+		preg_match("/[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,3})/i", $src, $matches);
+		$email = $matches[0];
+		return $email;
+	}
 }

@@ -8,7 +8,10 @@
         }
     ],
     "require": {
-    	"php" : ">=5.4.0"
+    	"php" : ">=5.4.0",
+        "swiftmailer/swiftmailer": "^5.4",
+        "vlucas/phpdotenv": "^2.2",
+        "monolog/monolog": "^1.18"
 	},
     "autoload" : {
         "psr-4": {

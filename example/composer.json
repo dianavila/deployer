@@ -1,0 +1,8 @@
+{
+    "require": {
+        "grovers/deployer": "dev-develop",
+        "swiftmailer/swiftmailer": "^5.4",
+        "vlucas/phpdotenv": "^2.2",
+        "monolog/monolog": "^1.18"
+    }
+}

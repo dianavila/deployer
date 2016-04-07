@@ -41,17 +41,50 @@ Call the deployer in your code
 ```
 <?php
     require 'vendor/autoload.php';
-    $deployer = new Grovers\Deployer('http://myJenkinsServer.com');
+    $deployer = new Grovers\Deployer();
 
-    // Log raw data (default is false)
-    $deployer->rawdata(true);
 
     // Handle the incoming request
     $deployer->process();
 ```
 
+Finally set up your configuration items.  The [dotenv](https://github.com/motdotla/dotenv) is a good tool for getting this set up.  The values in a `.env` text file are loaded into Environment variables.  We leave it to you to determine how you will get the values into the environment.  See the `example/index.php` for one way to do so. The configuration variables are defined below
+
 The code will quietly exit if the current request is not an HTTP POST request.
 
-The rawdata(true) will dump the posted data as a JSON string into your logs.  This is VERY helpful for debugging purposes, but will make for large logs if left enabled.
-
 A "deployer.log" file will be created at the document root of the domain being called.
+
+## Configuration Variables
+
+Configuration values are expected to be defined as Environment variables.  Specifically the getenv() method is used to retrieve the pertinent values.
+
+|ENV Variable|Value|Description|
+|------------|-----|-----------|
+|JENKINS_URL|HTTP/HTTPS URL|The Jenkins URL.  i.e. http://jenkins.example.com.  The remaining elements are added to this URL based on the data recevied from Bitbucket.|
+|LOG_ENABLE|Boolean|Set to true to enable logging.  A deployer.log file will be created.|
+|LOG_RAW|Boolean|If set to true the raw JSON data object received from Bitbucket is added to the log file.  We recommend only enabling this when troubleshooting as the resulting log files can grow very quickly.|
+|SMTP_ENABLE|Boolean|If set to true, error messages will be sent to the commit author.|
+|SMTP_HOSTNAME|Host|A IP Address or Domain name that points to the server that will send out email messages.|
+|SMTP_PORT|Integer|The port number to connect to the mail server with.|
+|SMTP_USERNAME|String|The username to authenticate to the mail server with.|
+|SMTP_PASSWORD|String|The password to authenticate to the mail server with.|
+|SMTP_SENDER_NAME|String|The Name presented as the FROM property for outgoing emails.|
+|SMTP_SENDER_EMAIL|String|The Email address presented for the FROM property of the outgoing emails.|
+
+## Troubleshooting
+
+See `https://confluence.atlassian.com/bitbucket/event-payloads-740262817.html#EventPayloads-Push` for details about the structure of the Bitbucket webhook payloads.
+
+Most issues will be in the form of one of these issues:
+
+1. The Bitbucket post never arrives at the Deployer URL.
+> Check to ensure the Deployer URL is operational.  Ensure the URL specified for the Bitbucket webhook is correct.
+1. The received post data is not in the correct format.
+> Did Bitbucket update their system?  If so Deployer may need to be updated to handle the new formats.
+> Make sure a Webhook is used with Bitbucket, not the older "service" items.
+1. You recieve a 404 when talking to the Jenkins URL
+> Make sure the Bitbucket repository and the Jenkins job uses the correct naming format.
+> Does Jenkins actually have a job for that repository?
+1. You receive a 403 when talking to the Jenkins URL
+> Ensure the Token used for the webhook URL matches the Build Trigger Authentication Token in the Jenkins job (under the `Trigger builds remotely` item)
+
