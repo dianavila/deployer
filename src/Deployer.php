@@ -99,7 +99,7 @@ class Deployer {
 
 		// we can only define a job if the branch is known
 		if ($out['branch'] != '') {
-			$out['job'] = $out['repo'] . getenv('JENKINS_SEPARATOR', '-') . $out['branch'];			
+			$out['job'] = $out['repo'] . getenv('JENKINS_SEPARATOR') . $out['branch'];			
 		}
 
 		if (array_key_exists('token', $_GET)) {
